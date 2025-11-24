@@ -3,10 +3,10 @@ import time
 
 # Initialize PIR sensor on GPIO 0
 pir = Pin(0, Pin.IN, Pin.PULL_DOWN)
-led = Pin("LED", Pin.OUT)  # Initialize LED on GPIO 2
+led = Pin(2, Pin.OUT)  # Initialize LED on GPIO 2
 pir_state = False  # Start assuming no motion detected
 last_motion_time = 0  # Timestamp of the last motion detected
-debounce_time = 3  # Debounce period in seconds
+debounce_time = 0.5  # Debounce period in seconds
 counter = 0
 
 print("PIR Module Initialized")
