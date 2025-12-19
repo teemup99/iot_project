@@ -15,15 +15,35 @@ led = Pin(2, Pin.OUT)
 counter = 0
 pir_state = False
 last_motion = 0
-debounce = 0.5
+debounce_ms = 500
 valkkumisvali = 0
 houradjust = 2
+pending_db_send = False
+pending_msg = None
 
+blink_count = 0
+blink_next = 0
+blink_state = 0
+blink_delay = 100 #ms
 
-def blink(times=5, delay=0.1):
-    for _ in range(times):
-        led.on(); time.sleep(delay)
-        led.off(); time.sleep(delay)
+def start_blink(times=5):
+    global blink_count, blink_next
+    if blink_count != 0:
+        return
+    led.off()
+    blink_count = times * 2
+    blink_next = time.ticks_ms()
+    
+def handle_blink():
+    global blink_count, blink_next
+    if blink_count == 0:
+        return
+    if time.ticks_diff(time.ticks_ms(), blink_next) >= 0:
+        led.toggle()
+        blink_count -= 1
+        blink_next = time.ticks_add(time.ticks_ms(), blink_delay)
+        if blink_count == 0:
+            led.off()
 
 # WiFi setup
 SSID = config.ssid
@@ -34,16 +54,10 @@ wlan.active(True)
 wlan.connect(SSID, PASSWORD)
 
 while wlan.status() != 3:
-    #print("Connecting...")
     time.sleep(1)
 
 ip = wlan.ifconfig()[0]
-#print("Connected:", ip)
-blink(3, 0.1)
-
-# HTML
-def generate_html():
-    return """<html><body><h1>Pico Counter</h1></body></html>"""
+start_blink(3)
 
 #callback function
 def my_callback(topic, message):
@@ -55,22 +69,17 @@ def my_callback(topic, message):
 def convert_time():
     tm = time.localtime()
     correct_time = time.localtime(time.mktime(tm) + houradjust * 3600)
-    return "{:04}-{:02}-{:02} {:02}:{:02}:{:02}".format(
-        correct_time[0], correct_time[1], correct_time[2], #mmddyyy
-        correct_time[3], correct_time[4], correct_time[5] #hhmmss
-        )
+    return ("{:04}-{:02}-{:02}".format(correct_time[0], correct_time[1], correct_time[2]),
+            "{:02}:{:02}:{:02}".format(correct_time[3], correct_time[4], correct_time[5])) #hhmmss
 
-def send_to_db(datetime):
-    encoded_datetime = datetime.replace(" ", "%20")
-    url = "{}?date={}".format(config.sheet_url, encoded_datetime)
+def send_to_db(date1, time1):
+    url = "{}?date={}&time={}".format(config.sheet_url, date1, time1)
     response = urequests.get(url)
-    #print("Data sent")
     return
 
-#time_sync
+#time sync
 ntptime.host = "time.google.com"
 ntptime.settime()
-#print(time.localtime())
 
 # Server setup
 s = socket.socket()
@@ -102,24 +111,31 @@ client.connect()
 client.subscribe("change")
 
 while True:
+    client.check_msg() #Check for msg
+    handle_blink()
     # PIR detection
     val = pir.value()
-    now = time.time()
+    now = time.ticks_ms()
 
-    if val == 1 and not pir_state and now - last_motion > debounce:
+    if val == 1 and not pir_state and time.ticks_diff(now, last_motion) > debounce_ms:
         pir_state = True
         counter += 1
         last_motion = now
         if valkkumisvali > 0 and (counter % valkkumisvali == 0):
-            blink()
+            start_blink()
         client.publish("counter", str(counter))
-        send_to_db(convert_time())
-
-    if val == 0 and pir_state and now - last_motion > debounce:
-        pir_state = False
-        last_motion = now
-        led.off()
+        #Add pending db msg
+        pending_db_send = True
+        pending_msg = convert_time()
         
-    client.check_msg()
+    if val == 0 and pir_state:
+        pir_state = False
+        
+    if pending_db_send and pending_msg is not None:
+        try:
+            send_to_db(pending_msg[0], pending_msg[1])
+            pending_db_send = False
+        except:
+            pass
     
-    time.sleep(0.01)
+    time.sleep_ms(5)
