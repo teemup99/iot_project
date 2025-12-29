@@ -7,4 +7,4 @@ This is the logic for the app which was created using the MIT App Inventor.
 <img width="1196" height="708" alt="Näyttökuva 2025-12-09 kello 16 24 28" src="https://github.com/user-attachments/assets/1784378a-621e-4cd8-a669-791aae0e6fc1" />
 A picture of the current UI (still in development phase)
 
-Latest APK(s) can be found from https://drive.google.com/file/d/1kXltJj8yzT7s1QCNjhEzfPfVd8TRqcrV/view?usp=drive_link 
+Latest APK(s) can be found from [https://drive.google.com/file/d/1kXltJj8yzT7s1QCNjhEzfPfVd8TRqcrV/view?usp=drive_link](https://drive.google.com/drive/folders/1Tde8EkF5Q5oQ6Fpvn6kBSUMDXM46gjps?usp=sharing) 
